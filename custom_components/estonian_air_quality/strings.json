@@ -1,0 +1,28 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Estonian Ambient Air Quality",
+        "description": "Set up Estonian Ambient Air Quality integration",
+        "data": {
+          "data_types": "Select data types to monitor"
+        }
+      },
+      "select_stations": {
+        "title": "Select {data_type} Station",
+        "description": "Choose a station for {data_type} data",
+        "data": {
+          "station": "Station"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the server",
+      "cannot_fetch_stations": "Failed to fetch stations list",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This integration is already configured"
+    }
+  }
+}

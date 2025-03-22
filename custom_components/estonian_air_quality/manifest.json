@@ -1,0 +1,11 @@
+{
+  "domain": "estonian_air_quality",
+  "name": "Estonian Ambient Air Quality",
+  "documentation": "https://github.com/zaifkhan/estonian_air_quality",
+  "dependencies": [],
+  "config_flow": true,
+  "codeowners": ["@zaifkhan"],
+  "requirements": [],
+  "iot_class": "cloud_polling",
+  "version": "0.1.0",
+}
