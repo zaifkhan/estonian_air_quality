@@ -124,6 +124,10 @@ class EstonianAirQualitySensor(CoordinatorEntity, SensorEntity):
             # CO should be in ppm
             self._attr_native_unit_of_measurement = "ppm"
             # For CO, we need to convert mg/m³ to ppm during value calculation
+        elif self._data_type == DATA_TYPE_RADIATION:
+            # Set special device class for radiation
+            self._device_class = "radiation" if hasattr(SensorDeviceClass, "RADIATION") else None
+            self._attr_native_unit_of_measurement = self._original_unit
         else:
             # For sensors without special device class, use the original unit
             self._attr_native_unit_of_measurement = self._original_unit
@@ -150,19 +154,24 @@ class EstonianAirQualitySensor(CoordinatorEntity, SensorEntity):
             data_points = self.coordinator.data[self._data_type][self._indicator_id]
             if data_points:
                 # Get the latest measurement
-                latest = max(data_points, key=lambda x: datetime.fromisoformat(x["measured"].replace(" ", "T")))
                 try:
-                    value = float(latest["value"])
-                    
-                    # Convert CO from mg/m³ to ppm if needed
-                    if (self._device_class == SensorDeviceClass.CO and 
-                        self._original_unit == "mg/m³" and
-                        self._attr_native_unit_of_measurement == "ppm"):
-                        # Conversion factor for CO: 1 mg/m³ ≈ 0.873 ppm at 25°C and 1 atm
-                        value = value * 0.873
+                    latest = max(data_points, key=lambda x: datetime.fromisoformat(x["measured"].replace(" ", "T")))
+                    try:
+                        value = float(latest["value"])
                         
-                    return value
-                except (ValueError, TypeError):
+                        # Convert CO from mg/m³ to ppm if needed
+                        if (self._device_class == SensorDeviceClass.CO and 
+                            self._original_unit == "mg/m³" and
+                            self._attr_native_unit_of_measurement == "ppm"):
+                            # Conversion factor for CO: 1 mg/m³ ≈ 0.873 ppm at 25°C and 1 atm
+                            value = value * 0.873
+                            
+                        return value
+                    except (ValueError, TypeError):
+                        _LOGGER.warning(f"Invalid value for {self._attr_name}: {latest.get('value', 'unknown')}")
+                        return None
+                except Exception as err:
+                    _LOGGER.error(f"Error retrieving latest data point for {self._attr_name}: {err}")
                     return None
         
         return None
@@ -181,6 +190,11 @@ class EstonianAirQualitySensor(CoordinatorEntity, SensorEntity):
             "original_unit": self._original_unit,
         }
         
+        # Add API status information from the coordinator if available
+        if hasattr(self.coordinator, "api_status") and self._data_type in self.coordinator.api_status:
+            for key, value in self.coordinator.api_status[self._data_type].items():
+                attrs[f"api_{key}"] = value
+        
         # Add measurement timestamps and data source information
         if (
             self.coordinator.data
@@ -189,23 +203,32 @@ class EstonianAirQualitySensor(CoordinatorEntity, SensorEntity):
         ):
             data_points = self.coordinator.data[self._data_type][self._indicator_id]
             if data_points:
-                latest = max(data_points, key=lambda x: datetime.fromisoformat(x["measured"].replace(" ", "T")))
-                
-                # Add timestamp of the measurement
-                attrs["last_measured"] = latest["measured"]
-                
-                # Add information about when the data was checked/fetched
-                if "last_checked" in latest:
-                    attrs["last_checked"] = latest["last_checked"]
-                
-                # Add the date that was used to fetch the data (could be historical)
-                if "fetch_date" in latest:
-                    attrs["fetch_date"] = latest["fetch_date"]
+                try:
+                    latest = max(data_points, key=lambda x: datetime.fromisoformat(x["measured"].replace(" ", "T")))
                     
-                    # If the fetch date is not today's date, indicate this is historical data
-                    today = datetime.now().strftime("%d.%m.%Y")
-                    if latest["fetch_date"] != today:
-                        attrs["is_historical"] = True
+                    # Add timestamp of the measurement
+                    attrs["last_measured"] = latest["measured"]
+                    
+                    # Add information about when the data was checked/fetched
+                    if "last_checked" in latest:
+                        attrs["last_checked"] = latest["last_checked"]
+                    
+                    # Add the date that was used to fetch the data (could be historical)
+                    if "fetch_date" in latest:
+                        attrs["fetch_date"] = latest["fetch_date"]
+                        
+                        # If the fetch date is not today's date, indicate this is historical data
+                        today = datetime.now().strftime("%d.%m.%Y")
+                        if latest["fetch_date"] != today:
+                            attrs["is_historical"] = True
+                    
+                    # Add additional status information from the data point
+                    for key in ["status", "returned_code"]:
+                        if key in latest:
+                            attrs[key] = latest[key]
+                            
+                except Exception as err:
+                    _LOGGER.error(f"Error processing attributes for {self._attr_name}: {err}")
         
         # Add last successful date from coordinator if available
         if hasattr(self.coordinator, "last_successful_dates") and self._data_type in self.coordinator.last_successful_dates:
@@ -216,3 +239,22 @@ class EstonianAirQualitySensor(CoordinatorEntity, SensorEntity):
             attrs["coordinator_last_checked"] = self.coordinator.last_checked_dates[self._data_type]
         
         return attrs
+    
+    @property
+    def icon(self):
+        """Return the icon based on data type."""
+        if self._data_type == DATA_TYPE_AIR_QUALITY:
+            return "mdi:air-filter"
+        elif self._data_type == DATA_TYPE_POLLEN:
+            return "mdi:flower-pollen"
+        elif self._data_type == DATA_TYPE_RADIATION:
+            return "mdi:radioactive"
+        return None
+    
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        # Enhancement: Be more forgiving with availability
+        # Consider the entity available if the coordinator is running,
+        # even if the last update failed
+        return self.coordinator is not None
