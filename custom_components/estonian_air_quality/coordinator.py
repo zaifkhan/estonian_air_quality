@@ -20,6 +20,7 @@ from .const import (
     INDICATORS,
     STATIONS,
     UPDATE_INTERVAL,
+    DATA_TYPE_TO_API_TYPE,
     DATA_TYPE_POLLEN,  # Import pollen data type specifically
 )
 
@@ -178,7 +179,8 @@ class EstonianAirQualityCoordinator(DataUpdateCoordinator):
     
     async def _fetch_data_for_date_range(self, data_type, station_id, indicator_str, start_date, end_date):
         """Fetch data for a specific date range with retry logic."""
-        url = f"{BASE_URL}?stations={station_id}&indicators={indicator_str}&range={start_date},{end_date}"
+        api_type = DATA_TYPE_TO_API_TYPE.get(data_type, "INDICATOR") # Default to INDICATOR if not found
+        url = f"{BASE_URL}?stations={station_id}&indicators={indicator_str}&range={start_date},{end_date}&type={api_type}"
         
         session = async_get_clientsession(self.hass)
         
