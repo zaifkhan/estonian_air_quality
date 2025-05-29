@@ -17,6 +17,12 @@ DATA_TYPES = {
     DATA_TYPE_RADIATION: "Radiation",
 }
 
+DATA_TYPE_TO_API_TYPE = {
+    DATA_TYPE_AIR_QUALITY: "INDICATOR",
+    DATA_TYPE_POLLEN: "POLLEN",
+    DATA_TYPE_RADIATION: "RADIATION",
+}
+
 # URLs for station and indicator API endpoints
 STATION_URL = {
     DATA_TYPE_AIR_QUALITY: "https://ohuseire.ee/api/station/en?type=INDICATOR",
